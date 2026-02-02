@@ -1,73 +1,104 @@
-# React + TypeScript + Vite
+# Custom Virtualized DataGrid (React + TypeScript)
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A high-performance, accessible, and scalable **custom DataGrid** built from scratch using **React + TypeScript**, without relying on third-party grid libraries.  
+Designed to handle **large datasets (50k+ rows)** efficiently while maintaining smooth scrolling, keyboard accessibility, and extensibility.
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## 🚀 Features
 
-## React Compiler
+### Core Grid Capabilities
+- Virtualized rows for large datasets
+- Column virtualization (horizontal)
+- Sticky header
+- Column resizing (mouse + keyboard)
+- Column reordering
+- Sorting (single & multi-column)
+- Keyboard navigation (arrow keys, enter, escape)
+- Cell editing with validation
+- Optimistic UI updates for edits
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### Performance
+- Smooth scrolling at **55–60 FPS** with 50,000 rows
+- Minimal layout thrashing
+- Efficient DOM usage
+- Controlled memory growth under stress
+- No external virtualization libraries used
 
-## Expanding the ESLint configuration
+### Accessibility (A11y)
+- WAI-ARIA compliant grid roles
+- Keyboard-only navigation support
+- Screen reader tested (NVDA on Windows)
+- ARIA live regions for edit feedback
+- Focus management for cells and headers
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+---
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+## 🧠 Design Philosophy
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+- **No heavy grid libraries** (AG Grid, MUI Grid, etc.)
+- Predictable React patterns
+- Separation of concerns
+- Performance first, correctness always
+- Readable, maintainable code over clever hacks
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+---
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## 🛠️ Tech Stack
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+- **React**
+- **TypeScript**
+- **Storybook** (for documentation & testing)
+- **Tailwind CSS** (utility-first styling)
+- **ARIA / Accessibility APIs**
+- **Chrome / Edge DevTools** for profiling
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+---
+
+## 📁 Project Structure
+
+src/
+├── DataGrid.tsx # Core DataGrid implementation
+├── types.ts # Shared grid & column types
+├── index.ts # Public exports
+├── stories/
+│ ├── datagrid.stories.tsx
+│ ├── Basic.stories.tsx
+│ ├── LargeDataset.stories.tsx
+│ └── EditableCells.stories.tsx
+└── styles/
+
+## 📊 Performance Testing
+## Test Environment
+
+Device: Laptop
+CPU: Intel i3-1115G4 (11th Gen)
+RAM: 12GB (4GB + 8GB)
+OS: Windows
+Browser: Microsoft Edge
+
+## Dataset
+Rows: 50,000
+Columns: 10+
+Row height: 36px
+
+## Results
+FPS: 55–60
+Frame time: <16ms
+Interaction latency: <100ms
+JS Heap: ~1.1–1.27GB under stress
+No browser freezes or crashes
+📄 Performance Report (with screenshots) included as PDF.
+🧪 Storybook
+
+## Storybook is used for:
+Visual testing
+Accessibility testing
+Performance observation
+Interaction validation
+
+Run Storybook:
+npm run storybook
+
+## 🔍 Known Limitations
+Pinned column not working
