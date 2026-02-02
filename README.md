@@ -55,19 +55,6 @@ Designed to handle **large datasets (50k+ rows)** efficiently while maintaining 
 
 ---
 
-## 📁 Project Structure
-
-src/
-├── DataGrid.tsx # Core DataGrid implementation
-├── types.ts # Shared grid & column types
-├── index.ts # Public exports
-├── stories/
-│ ├── datagrid.stories.tsx
-│ ├── Basic.stories.tsx
-│ ├── LargeDataset.stories.tsx
-│ └── EditableCells.stories.tsx
-└── styles/
-
 ## 📊 Performance Testing
 ## Test Environment
 
