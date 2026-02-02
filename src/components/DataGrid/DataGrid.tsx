@@ -595,54 +595,6 @@ export function DataGrid<T>({
   // ========================================
   // Render
   // ========================================
-  
-  /*
-   * ACCESSIBILITY FEATURES (WCAG 2.2 / ARIA 1.2 Compliant):
-   * 
-   * 1. SEMANTIC STRUCTURE:
-   *    - Uses proper ARIA grid pattern (role="grid", "row", "gridcell", "columnheader")
-   *    - Follows WAI-ARIA Authoring Practices for data grids
-   * 
-   * 2. KEYBOARD NAVIGATION (Full keyboard support):
-   *    - Arrow keys: Navigate between cells
-   *    - Enter: Start editing a cell
-   *    - Escape: Cancel editing or deselect cell
-   *    - Tab: Move through focusable elements (headers, resize handles)
-   *    - Alt+Arrow: Reorder columns via keyboard
-   *    - Ctrl+Z: Undo last action
-   * 
-   * 3. SCREEN READER SUPPORT:
-   *    - Live regions (aria-live) announce:
-   *      - Cell save status (assertive)
-   *      - Column reorder confirmations (polite)
-   *      - Navigation changes (polite)
-   *    - Descriptive aria-labels on all interactive elements
-   *    - aria-atomic="true" ensures complete message readout
-   *    - Proper aria-rowindex and aria-colindex for position context
-   * 
-   * 4. FOCUS MANAGEMENT:
-   *    - Visual focus indicators (outline-2 outline-blue-500)
-   *    - Focus trap within editing cells
-   *    - Focus restoration after modal close
-   *    - Auto-scroll to keep focused cell visible
-   * 
-   * 5. COLOR CONTRAST:
-   *    - Active cells use bg-blue-50 (light blue) for WCAG AA compliance
-   *    - Hover states use bg-blue-50 for sufficient contrast
-   *    - Focus outlines use high-contrast blue-500
-   * 
-   * 6. STATE COMMUNICATION:
-   *    - aria-selected indicates active cell
-   *    - aria-sort communicates column sort state
-   *    - aria-expanded for collapsible elements (if added)
-   *    - aria-invalid for form validation errors
-   *    - aria-readonly indicates non-editable cells
-   * 
-   * 7. DYNAMIC CONTENT:
-   *    - aria-rowcount and aria-colcount for virtualized grids
-   *    - Position announcements for navigation
-   *    - Error messages linked via aria-describedby
-   */
 
   return (
     <div className="relative" style={{ height: 400, width: '100%' }}>
