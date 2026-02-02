@@ -11,13 +11,14 @@ export interface Column<T> {
   pinned?: 'left' | 'right'
   visible?: boolean
   sortable?: boolean
+  resizable?: boolean
   renderCell: (row: T) => React.ReactNode
   getSortValue?: (row: T) => string | number
   renderEditor?: (params: {
     value: unknown
     row: T
     onChange: (value: unknown) => void
-    onCommit: () => void
+    onCommit: (value: unknown) => void
     onCancel: () => void
   }) => React.ReactNode
   validate?: (
@@ -43,3 +44,21 @@ export interface SortState {
   columnId: string
   direction: SortDirection
 }
+export type UndoAction =
+  | {
+      type: 'column-resize'
+      columnId: string
+      prevWidth: number
+      nextWidth: number
+    }
+  | {
+      type: 'column-reorder'
+      prevOrder: string[]
+      nextOrder: string[]
+    }
+  | {
+      type: 'cell-edit'
+      key: string
+      prevValue: unknown
+      nextValue: unknown
+    }
