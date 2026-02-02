@@ -2,12 +2,14 @@
 import React, { useRef, useState, useLayoutEffect } from 'react'
 import type { SortState, DataGridProps, Column, UndoAction } from './types'
 
+// Virtualization constants for performance tuning
 const OVERSCAN = 5
- const COLUMN_OVERSCAN_PX = 200
+const COLUMN_OVERSCAN_PX = 200
+
+// Helper to check if column can be moved to another zone
 function getZone<T>(col: Column<T>) {
   return col.pinned === 'left' ? 'left' : 'center'
 }
-
 
 export function DataGrid<T>({
   rows,
@@ -17,35 +19,23 @@ export function DataGrid<T>({
   onSortChange,
   onEditCommit
 }: DataGridProps<T>) {
+  // ========================================
+  // Column Order & Metadata
+  // ========================================
+  
   const [columnOrder, setColumnOrder] = React.useState<string[]>(
-  () => columns.map(c => c.id)
-)
+    () => columns.map(c => c.id)
+  )
+
   const orderedColumns = React.useMemo(() => {
     const map = new Map(columns.map(c => [c.id, c]))
     return columnOrder
       .map(id => map.get(id))
       .filter((c): c is Column<T> => !!c && c.visible !== false)
   }, [columns, columnOrder])
-  
+
   const navigableColumns = React.useMemo(() => orderedColumns, [orderedColumns])
-
   const pinnedColumns = orderedColumns.filter((c) => c.pinned === 'left')
-  // const scrollableColumns = columns.filter((c) => !c.pinned)
-
-  const [scrollTop, setScrollTop] = useState(0)
-  const [scrollLeft, setScrollLeft] = useState(0)
-
-  const [activeCell, setActiveCell] = React.useState<{
-    rowIndex: number
-    colIndex: number
-  } | null>(null)
-  const [editingCell, setEditingCell] = React.useState<{
-    rowIndex: number
-    colId: string
-  } | null>(null)
-
-  const [editError, setEditError] = React.useState<string | null>(null)
-  const [isSaving, setIsSaving] = React.useState(false)
 
   const [columnWidths, setColumnWidths] = React.useState(() => {
     const map = new Map<string, number>()
@@ -54,11 +44,8 @@ export function DataGrid<T>({
     }
     return map
   })
-  const [optimisticEdits, setOptimisticEdits] = React.useState<
-    Map<string, unknown>
-  >(new Map())
-  const [undoStack, setUndoStack] = React.useState<UndoAction[]>([])
 
+  // Track column positions and widths for rendering
   const columnMeta = React.useMemo(() => {
     let offset = 0
     return orderedColumns.map((col, gridIndex) => {
@@ -75,22 +62,59 @@ export function DataGrid<T>({
     })
   }, [orderedColumns, columnWidths])
 
+  const totalGridWidth = React.useMemo(() => {
+    return columnMeta.length ? columnMeta[columnMeta.length - 1].end : 0
+  }, [columnMeta])
+
+  // ========================================
+  // Grid State (Scroll, Focus, Editing)
+  // ========================================
+
+  const [scrollTop, setScrollTop] = useState(0)
+  const [scrollLeft, setScrollLeft] = useState(0)
+
+  const [activeCell, setActiveCell] = React.useState<{
+    rowIndex: number
+    colIndex: number
+  } | null>(null)
+
+  const [editingCell, setEditingCell] = React.useState<{
+    rowIndex: number
+    colId: string
+  } | null>(null)
+
+  const [editError, setEditError] = React.useState<string | null>(null)
+  const [isSaving, setIsSaving] = React.useState(false)
+
+  // Optimistic updates for immediate UI feedback before server confirms
+  const [optimisticEdits, setOptimisticEdits] = React.useState<
+    Map<string, unknown>
+  >(new Map())
+
+  // Stack for undo/redo across column and cell operations
+  const [undoStack, setUndoStack] = React.useState<UndoAction[]>([])
+
+  const containerRef = useRef<HTMLDivElement | null>(null)
+  const [viewportHeight, setViewportHeight] = useState(0)
+  const viewportWidth = containerRef.current?.clientWidth ?? 0
+
+  // Refs for drag-drop and resize operations
+  const dragColId = React.useRef<string | null>(null)
   const resizingRef = React.useRef<{
     columnId: string
     startX: number
     startWidth: number
     currentWidth?: number
   } | null>(null)
-  const dragColId = React.useRef<string | null>(null)
 
-  const containerRef = useRef<HTMLDivElement | null>(null)
-  const [viewportHeight, setViewportHeight] = useState(0)
-  const viewportWidth = containerRef.current?.clientWidth ?? 0
+  // ========================================
+  // Derived Layout Calculations
+  // ========================================
 
-
- 
+  // Column virtualization boundaries
   const visibleStartX = scrollLeft - COLUMN_OVERSCAN_PX
   const visibleEndX = scrollLeft + viewportWidth + COLUMN_OVERSCAN_PX
+
   const virtualColumns = React.useMemo(() => {
     return columnMeta.filter((meta) => {
       if (meta.column.pinned === 'left') return false
@@ -107,34 +131,11 @@ export function DataGrid<T>({
     }
     return map
   }, [pinnedColumns, columnWidths])
+
   const pinnedColumnMeta = columnMeta.filter((m) => m.column.pinned === 'left')
   const renderColumns = [...pinnedColumnMeta, ...virtualColumns]
-  
 
-  useLayoutEffect(() => {
-    if (containerRef.current) {
-      setViewportHeight(containerRef.current.clientHeight)
-    }
-  }, [])
-
-  React.useEffect(() => {
-    if (!activeCell) return
-
-    const top = activeCell.rowIndex * rowHeight
-    const bottom = top + rowHeight
-
-    const viewTop = scrollTop
-    const viewBottom = scrollTop + viewportHeight
-
-    if (top < viewTop) {
-      containerRef.current?.scrollTo({ top })
-    } else if (bottom > viewBottom) {
-      containerRef.current?.scrollTo({
-        top: bottom - viewportHeight
-      })
-    }
-  }, [activeCell, rowHeight, scrollTop, viewportHeight])
-
+  // Row virtualization calculations
   const sortedRows = React.useMemo(() => {
     if (!sortState || sortState.length === 0) {
       return rows
@@ -175,9 +176,43 @@ export function DataGrid<T>({
   const topSpacerHeight = startIndex * rowHeight
   const bottomSpacerHeight = (totalRows - endIndex) * rowHeight
 
-  const totalGridWidth = React.useMemo(() => {
-    return columnMeta.length ? columnMeta[columnMeta.length - 1].end : 0
-  }, [columnMeta])
+  // ========================================
+  // Effects
+  // ========================================
+
+  // Measure viewport height once on mount
+  useLayoutEffect(() => {
+    if (containerRef.current) {
+      setViewportHeight(containerRef.current.clientHeight)
+    }
+  }, [])
+
+  // Auto-scroll to keep active cell visible
+  React.useEffect(() => {
+    if (!activeCell) return
+
+    const top = activeCell.rowIndex * rowHeight
+    const bottom = top + rowHeight
+
+    const viewTop = scrollTop
+    const viewBottom = scrollTop + viewportHeight
+
+    if (top < viewTop) {
+      containerRef.current?.scrollTo({ top })
+    } else if (bottom > viewBottom) {
+      containerRef.current?.scrollTo({
+        top: bottom - viewportHeight
+      })
+    }
+  }, [activeCell, rowHeight, scrollTop, viewportHeight])
+
+  // ========================================
+  // Sorting Logic
+  // ========================================
+
+  // ========================================
+  // Sorting Logic
+  // ========================================
 
   function toggleSort(columnId: string) {
     if (!onSortChange) return
@@ -200,6 +235,10 @@ export function DataGrid<T>({
     onSortChange(next)
   }
 
+  // ========================================
+  // Undo System
+  // ========================================
+
   function commitColumnReorder(nextOrder: string[]) {
     setUndoStack(prev => [
       ...prev,
@@ -214,51 +253,54 @@ export function DataGrid<T>({
   }
 
   function undoLastAction() {
-  setUndoStack(prev => {
-    const last = prev[prev.length - 1]
-    if (!last) return prev
+    setUndoStack(prev => {
+      const last = prev[prev.length - 1]
+      if (!last) return prev
 
-    switch (last.type) {
-      case 'column-resize':
-        setColumnWidths(w => {
-          const next = new Map(w)
-          next.set(last.columnId, last.prevWidth)
-          return next
-        })
-        break
+      switch (last.type) {
+        case 'column-resize':
+          setColumnWidths(w => {
+            const next = new Map(w)
+            next.set(last.columnId, last.prevWidth)
+            return next
+          })
+          break
 
-      case 'column-reorder':
-        setColumnOrder(last.prevOrder)
-        break
+        case 'column-reorder':
+          setColumnOrder(last.prevOrder)
+          break
 
-      case 'cell-edit':
-        // Parse the key to get rowIndex and columnId
-        const [rowIndexStr, columnId] = last.key.split(':')
-        const rowIndex = parseInt(rowIndexStr, 10)
-        
-        // Call onEditCommit to revert the data in the parent component
-        onEditCommit?.({
-          rowIndex,
-          columnId,
-          value: last.prevValue
-        })
-        
-        // Also update optimisticEdits for immediate visual feedback
-        setOptimisticEdits(edits => {
-          const next = new Map(edits)
-          if (last.prevValue === undefined) {
-            next.delete(last.key)
-          } else {
-            next.set(last.key, last.prevValue)
-          }
-          return next
-        })
-        break
-    }
+        case 'cell-edit':
+          const [rowIndexStr, columnId] = last.key.split(':')
+          const rowIndex = parseInt(rowIndexStr, 10)
+          
+          // Revert both optimistic UI and parent data
+          onEditCommit?.({
+            rowIndex,
+            columnId,
+            value: last.prevValue
+          })
+          
+          setOptimisticEdits(edits => {
+            const next = new Map(edits)
+            if (last.prevValue === undefined) {
+              next.delete(last.key)
+            } else {
+              next.set(last.key, last.prevValue)
+            }
+            return next
+          })
+          break
+      }
 
-    return prev.slice(0, -1)
-  })
-}
+      return prev.slice(0, -1)
+    })
+  }
+
+  // ========================================
+  // Keyboard & Interaction Handlers
+  // ========================================
+
   function handleGridKeyDown(e: React.KeyboardEvent) {
     if (!activeCell) return
 
@@ -270,11 +312,12 @@ export function DataGrid<T>({
       setEditError(null)
       return
     }
+
     if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
-  e.preventDefault()
-  undoLastAction()
-  return
-}
+      e.preventDefault()
+      undoLastAction()
+      return
+    }
 
     if (e.key === 'Enter' && activeCell && !editingCell) {
       const column = navigableColumns[activeCell.colIndex]
@@ -310,6 +353,10 @@ export function DataGrid<T>({
     setActiveCell({ rowIndex, colIndex })
   }
 
+  // ========================================
+  // Editing & Optimistic Updates
+  // ========================================
+
   async function commitEdit(row: T, column: Column<T>, rowIndex: number, editedValue: unknown) {
     if (!column.renderEditor) return
 
@@ -320,7 +367,7 @@ export function DataGrid<T>({
       setIsSaving(true)
       setEditError(null)
 
-      // Get the actual current value from the row data, not from optimisticEdits
+      // Capture pre-edit value for undo
       const prevValue = column.getSortValue ? column.getSortValue(row) : undefined
 
       setUndoStack(prev => [
@@ -339,7 +386,6 @@ export function DataGrid<T>({
         return next
       })
 
-
       if (column.validate) {
         const result = await column.validate(value, row)
         if (!result.valid) {
@@ -355,18 +401,18 @@ export function DataGrid<T>({
       })
 
       setOptimisticEdits(prev => {
-      const next = new Map(prev)
-      next.delete(key)
-      return next
-    })
+        const next = new Map(prev)
+        next.delete(key)
+        return next
+      })
 
       setEditingCell(null)
     } catch (err) {
       setOptimisticEdits(prev => {
-      const next = new Map(prev)
-      next.delete(key)
-      return next
-    })
+        const next = new Map(prev)
+        next.delete(key)
+        return next
+      })
       setEditError(
         err instanceof Error ? err.message : 'Failed to save'
       )
@@ -374,6 +420,19 @@ export function DataGrid<T>({
       setIsSaving(false)
     }
   }
+
+  function getCellValue(row: T, rowIndex: number, column: Column<T>) {
+    const key = `${rowIndex}:${column.id}`
+    if (optimisticEdits.has(key)) {
+      return optimisticEdits.get(key)
+    }
+    return column.getSortValue ? column.getSortValue(row) : undefined
+  }
+
+  // ========================================
+  // Resize Logic (Mouse & Keyboard)
+  // ========================================
+
   function onResizeMouseDown(e: React.MouseEvent, columnId: string) {
     e.preventDefault()
     e.stopPropagation()
@@ -401,7 +460,7 @@ export function DataGrid<T>({
     if (column.minWidth) nextWidth = Math.max(nextWidth, column.minWidth)
     if (column.maxWidth) nextWidth = Math.min(nextWidth, column.maxWidth)
 
-    // Store the current width for undo
+    // Store for undo tracking
     state.currentWidth = nextWidth
 
     setColumnWidths((prev) => {
@@ -413,7 +472,7 @@ export function DataGrid<T>({
 
   function onResizeMouseUp() {
     const state = resizingRef.current
-    if(state){
+    if (state) {
       const prevWidth = state.startWidth
       const nextWidth = state.currentWidth ?? columnWidths.get(state.columnId)!
 
@@ -434,15 +493,9 @@ export function DataGrid<T>({
     window.removeEventListener('mouseup', onResizeMouseUp)
   }
 
-  function getCellValue(row: T, rowIndex: number, column: Column<T>) {
-    const key = `${rowIndex}:${column.id}`
-    if (optimisticEdits.has(key)) {
-      return optimisticEdits.get(key)
-    }
-    return column.getSortValue ? column.getSortValue(row) : undefined
-  }
-  
-
+  // ========================================
+  // Render
+  // ========================================
 
   return (
     <div
@@ -458,12 +511,13 @@ export function DataGrid<T>({
         }
       }}
       className="flex flex-col border border-gray-800 rounded-md overflow-auto relative"
-      style={{ height: 400, width: '100%' }} // fixed viewport height and width
+      style={{ height: 400, width: '100%' }}
       onScroll={(e) => {
         setScrollTop(e.currentTarget.scrollTop)
         setScrollLeft(e.currentTarget.scrollLeft)
       }}
     >
+      {/* Live region for screen readers */}
       <div aria-live="assertive" className="sr-only">
         {isSaving
           ? 'Saving cell'
@@ -472,8 +526,9 @@ export function DataGrid<T>({
             : ''}
       </div>
       <div aria-live="polite" className="sr-only" id="column-reorder-status" />
+
       <div className="relative flex-none" style={{ width: totalGridWidth }}>
-        {/* Header */}
+        {/* Header Row */}
         <div
           role="row"
           aria-rowindex={1}
@@ -501,6 +556,7 @@ export function DataGrid<T>({
                   const fromCol = columns.find(c => c.id === from)!
                   const toCol = column
 
+                  // Prevent cross-zone dragging
                   if (getZone(fromCol) !== getZone(toCol)) return
 
                   const next = [...columnOrder]
@@ -547,6 +603,7 @@ export function DataGrid<T>({
                 }
                 tabIndex={isSortable ? 0 : -1}
                 onKeyDown={(e) => {
+                  // Alt+Arrow for keyboard reordering
                   if (e.altKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
                     e.preventDefault()
 
@@ -633,7 +690,7 @@ export function DataGrid<T>({
           })}
         </div>
 
-        {/* Body */}
+        {/* Body Rows */}
         <div>
           <div style={{ height: topSpacerHeight }} />
 
@@ -690,7 +747,7 @@ export function DataGrid<T>({
                               : undefined,
                             row,
                             onChange: () => {
-                              // uncontrolled — editor owns state
+                              // Editor controls its own state
                             },
                             onCommit: async (editedValue: unknown) => {
                               await commitEdit(row, column, absoluteRowIndex, editedValue)
